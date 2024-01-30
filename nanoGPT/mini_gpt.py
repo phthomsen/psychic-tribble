@@ -4,17 +4,18 @@ from torch.nn import functional as F
 from tqdm import tqdm
 
 # hyperparameters
-batch_size = 64 # how many independent sequences will we process in parallel?
-block_size = 256 # what is the maximum context length for predictions?
-max_iters = 5000
-eval_interval = 500
+batch_size = 128 # how many independent sequences will we process in parallel?
+block_size = 264 # what is the maximum context length for predictions?
+max_iters = 6500
+eval_interval = 1000
 learning_rate = 3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
 n_embd = 384
 n_head = 6
-n_layer = 6
-dropout = 0.2 # 20% is dropped out
+n_layer = 7
+dropout = 0.5 # dropout% is dropped out
+
 # ------------
 
 torch.manual_seed(1337)
@@ -189,6 +190,10 @@ class BigramLanguageModel(nn.Module):
 model = BigramLanguageModel()
 m = model.to(device)
 
+# number of parameters
+n_params = sum([p.numel() for p in model.parameters() if p.requires_grad])
+print(f"number of trainable parameters: {n_params}")
+
 # create a PyTorch optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
@@ -211,3 +216,10 @@ for iter in tqdm(range(max_iters)):
 # generate from the model
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
+
+def main():
+  pass
+
+
+if __name__ == "__main__":
+  main()
