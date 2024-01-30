@@ -83,6 +83,7 @@ class Head(nn.Module):
 
     return out
 
+# kind of like group convolution
 class MultiHeadAttention(nn.Module):
   """ multiple heads of self-attention in parallel """
 
