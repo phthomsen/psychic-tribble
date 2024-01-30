@@ -90,9 +90,12 @@ class MultiHeadAttention(nn.Module):
   def __init__(self, num_heads, head_size):
     super().__init__()
     self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
-    
+    self.proj = nn.Linear(n_embd, n_embd)
+     
   def forward(self, x):
-    return torch.cat([h(x) for h in self.heads], dim=-1) # concatenate over the channel dimension
+    out = torch.cat([h(x) for h in self.heads], dim=-1) # concatenate over the channel dimension
+    out = self.proj(out) # projection back into the residual pathway
+    return out
 
 class FeedForward(nn.Module):
   """ a simple linear layer followed by a nonlinearity """
@@ -100,8 +103,9 @@ class FeedForward(nn.Module):
   def __init__(self, n_embd):
     super().__init__()
     self.net = nn.Sequential(
-      nn.Linear(n_embd, n_embd),
-      nn.ReLU()
+      nn.Linear(n_embd, 4 * n_embd), # grow layer
+      nn.ReLU(),
+      nn.Linear(4 * n_embd, n_embd) # shrink layer
     )
 
   def forward(self, x):
@@ -118,8 +122,8 @@ class Block(nn.Module):
     self.ffwd = FeedForward(n_embd)
   
   def forward(self, x):
-    x = self.sa(x)
-    x = self.ffwd(x)
+    x = x + self.sa(x) # residual connections
+    x = x + self.ffwd(x) # residual connections
     return x
 
 
