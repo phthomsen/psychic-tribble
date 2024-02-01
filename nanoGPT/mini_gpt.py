@@ -4,7 +4,10 @@ from torch.nn import functional as F
 import yaml
 from tqdm import tqdm
 import logging
+import os
 
+logging.basicConfig(level=logging.INFO if not os.getenv("DEBUG") else logging.DEBUG) # not pretty but works
+logger = logging.getLogger(__name__)
 
 def get_yaml_params(yaml_path):
   with open(yaml_path) as f:
@@ -52,12 +55,16 @@ class Head(nn.Module):
     q = self.query(x)
     # compute attention scores aka affinities
     wei = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, C) @ (B, T, C) -> (B, T, T)
+    # logger.debug(f"weight matrix in this head has: {wei.shape}")
     wei = wei.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # (B, T, T)
+    # logger.debug(f"weight matrix after masking: {wei.shape}")
     wei = F.softmax(wei, dim=1) # (B, T, T)
+    # logger.debug(f"weight matrix after softmax: {wei.shape}")
     wei = self.dropout(wei)
     # perform self weighted aggregation of the values
     v = self.value(x)
     out = wei @ v # (B, T, T) @ (B, T, C) -> (B, T, C)
+    # logger.debug(f"after applying the complete head: {out.shape}")
 
     return out
 
@@ -72,7 +79,9 @@ class MultiHeadAttention(nn.Module):
     self.dropout = nn.Dropout(dropout)
      
   def forward(self, x):
+    logger.debug(f"shape before concatenation: {x.shape}")
     out = torch.cat([h(x) for h in self.heads], dim=-1) # concatenate over the channel dimension
+    logger.debug(f"shape after concatenation: {out.shape}")
     out = self.dropout(self.proj(out)) # projection back into the residual pathway
     return out
 
@@ -104,8 +113,21 @@ class Block(nn.Module):
     self.ln2 = nn.LayerNorm(n_embd)
   
   def forward(self, x):
-    x = x + self.sa(self.ln1(x)) # residual connections
-    x = x + self.ffwd(self.ln1(x)) # residual connections
+    logger.debug(f"initial shape: {x.shape}")
+    x_res = self.ln1(x)
+    logger.debug(f"shape after layer norm 1: {x.shape}")
+    x_res = self.sa(x_res)
+    logger.debug(f"shape after attention: {x.shape}")
+    x = x + x_res
+    logger.debug(f"shape after residual conntection 1: {x.shape}")
+    # x = x + self.sa(self.ln1(x)) # residual connections
+    x_res = self.ln2(x)
+    logger.debug(f"shape after layer norm 2: {x.shape}")
+    x_res = self.ffwd(x_res)
+    logger.debug(f"shape after forward: {x.shape}")
+    x = x + x_res 
+    logger.debug(f"shape after residual 2: {x.shape}")
+    # x = x + self.ffwd(self.ln1(x)) # residual connections
     return x
 
 
@@ -165,9 +187,6 @@ class BigramLanguageModel(nn.Module):
 
 def main():
 
-  logging.basicConfig(level=logging.INFO)
-  logger = logging.getLogger(__name__)
-
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
   torch.manual_seed(1337)
    
@@ -180,7 +199,10 @@ def main():
   n_head = yaml_params['n_head']
   n_layer = yaml_params['n_layer']
   dropout = yaml_params['dropout']
-   
+  
+  # check parameters
+  assert n_embd % n_head == 0, "n_embd needs to be divisible by n_head" 
+
   # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
   with open(yaml_params['data_path'], 'r', encoding='utf-8') as f:
       text = f.read()
