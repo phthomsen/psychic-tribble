@@ -191,7 +191,9 @@ def main():
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
   torch.manual_seed(1337)
   
+  # TODO: store in location
   store_model = True if os.getenv("STORE") else None
+  # TODO: load from location
   load_model = True if os.getenv("LOAD") else None
   track_metrics = True if os.getenv("METRICS") else None
      
@@ -218,6 +220,7 @@ def main():
   logger.info(f" --- Number of layers               : {n_layer}") 
 
   # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
+  # TODO: make overrides from command line
   with open(yaml_params['data_path'], 'r', encoding='utf-8') as f:
       text = f.read()
 
@@ -274,6 +277,7 @@ def main():
 
   logger.info("Training done.")
   if store_model:
+    # TODO: put in function
     os.makedirs("../models/", exist_ok=True)
     if os.path.isfile(model_path):
       if input("want to override the existing model file ? y/n \n") == "y":
@@ -285,6 +289,7 @@ def main():
       logger.info("Store model")
       torch.save(model, model_path)
   
+  # TODO: put in function and make it possible to only generate or only train
   logger.info("Start generating.")
   # generate from the model
   context = torch.zeros((1, 1), dtype=torch.long, device=device)
