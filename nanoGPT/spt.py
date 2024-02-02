@@ -188,9 +188,12 @@ class BigramLanguageModel(nn.Module):
 
 def main():
 
-  device = 'cuda' if torch.cuda.is_available() else 'cpu'
+  device = 'cuda' if torch.cuda.is_available() else 'mps'
   torch.manual_seed(1337)
-   
+  
+  store_model = True if os.getenv("STORE") else None
+  load_model = True if os.getenv("LOAD") else None
+     
   # load hyperparams
   yaml_params = get_yaml_params("hyper_mac.yaml")
   n_embd = yaml_params['n_embd']
@@ -198,13 +201,20 @@ def main():
   block_size = yaml_params['block_size']
   batch_size = yaml_params['batch_size']
   eval_iters = yaml_params['eval_iters']
+  eval_interval = yaml_params['eval_interval']
   n_head = yaml_params['n_head']
   n_layer = yaml_params['n_layer']
   dropout = yaml_params['dropout']
   i_lr = float(yaml_params['learning_rate'])
-  
-  # check parameters
-  assert n_embd % n_head == 0, "n_embd needs to be divisible by n_head" 
+  model_path = "../models/spt.pt"
+
+  logger.info(f" --- Number of Epochs               : {max_iters}")
+  logger.info(f" --- Number of layers               : {n_layer}")
+  logger.info(f" --- Size of Embedding              : {n_embd}")
+  logger.info(f" --- Number of heads                : {n_head}")
+  logger.info(f" --- Size of Heads                  : {n_embd // n_head}")
+  logger.info(f" --- Initial learning rate          : {i_lr}")
+  logger.info(f" --- Number of layers               : {n_layer}") 
 
   # wget https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt
   with open(yaml_params['data_path'], 'r', encoding='utf-8') as f:
@@ -225,29 +235,23 @@ def main():
   train_data = data[:n]
   val_data = data[n:]
 
-  
-  model = BigramLanguageModel(vocab_size, n_embd, block_size, n_head, n_layer, device, dropout)
+  if not load_model:
+    model = BigramLanguageModel(vocab_size, n_embd, block_size, n_head, n_layer, device, dropout)
+  else:
+    model = torch.load("../models/spt.pt")
   m = model.to(device)
 
   # number of parameters
   n_params = sum([p.numel() for p in model.parameters() if p.requires_grad])
   logger.info(f" --- Number of trainable parameters : {n_params}")
-  logger.info(f" --- Number of Epochs               : {max_iters}")
-  logger.info(f" --- Number of layers               : {n_layer}")
-  logger.info(f" --- Size of Embedding              : {n_embd}")
-  logger.info(f" --- Number of heads                : {n_head}")
-  logger.info(f" --- Size of Heads                  : {n_embd // n_head}")
-  logger.info(f" --- Initial learning rate          : {i_lr}")
-  logger.info(f" --- Number of layers               : {n_layer}")
-
-  # create a PyTorch optimizer
+  # create a PyTorch optimizer and scheduler
   optimizer = torch.optim.AdamW(model.parameters(), lr=i_lr)
   scheduler = ReduceLROnPlateau(optimizer, 'min', )
 
   for iter in tqdm(range(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
-      if iter % eval_iters == 0:
+      if iter % eval_interval == 0:
           losses = estimate_loss(model, val_data, eval_iters, block_size, batch_size, device)
           logger.info(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
           scheduler.step(losses['val'])
@@ -261,6 +265,20 @@ def main():
       loss.backward()
       optimizer.step()
 
+  logger.info("Training done.")
+  if store_model:
+    os.makedirs("../models/", exist_ok=True)
+    if os.path.isfile(model_path):
+      if input("want to override the existing model file ? y/n \n") == "y":
+        logger.info("Deleting the old model")
+        os.remove(model_path)
+        logger.info("Store model.")
+        torch.save(model, model_path)
+    else:
+      logger.info("Store model")
+      torch.save(model, model_path)
+  
+  logger.info("Start generating.")
   # generate from the model
   context = torch.zeros((1, 1), dtype=torch.long, device=device)
   print(decode(m.generate(context, max_new_tokens=500)[0].tolist()))
