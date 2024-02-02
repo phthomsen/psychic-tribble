@@ -1,3 +1,4 @@
+""" SMALL PRETRAINED TRANSFORMER """
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -192,6 +193,7 @@ def main():
   # load hyperparams
   yaml_params = get_yaml_params("hyper_mac.yaml")
   n_embd = yaml_params['n_embd']
+  max_iters = yaml_params['max_iters']
   block_size = yaml_params['block_size']
   batch_size = yaml_params['batch_size']
   eval_iters = yaml_params['eval_iters']
@@ -227,12 +229,19 @@ def main():
 
   # number of parameters
   n_params = sum([p.numel() for p in model.parameters() if p.requires_grad])
-  logger.info(f"number of trainable parameters: {n_params}")
+  logger.info(f" --- Number of trainable parameters : {n_params}")
+  logger.info(f" --- Number of Epochs               : {max_iters}")
+  logger.info(f" --- Number of layers               : {n_layer}")
+  logger.info(f" --- Size of Embedding              : {n_embd}")
+  logger.info(f" --- Number of heads                : {n_head}")
+  logger.info(f" --- Size of Heads                  : {n_embd // n_head}")
+  logger.info(f" --- Batch Size                     : {batch_size}")
+  logger.info(f" --- Number of layers               : {n_layer}")
 
   # create a PyTorch optimizer
   optimizer = torch.optim.AdamW(model.parameters(), lr=float(yaml_params['learning_rate']))
 
-  for iter in tqdm(range(yaml_params['max_iters'])):
+  for iter in tqdm(range(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
       if iter % yaml_params['eval_interval'] == 0:
