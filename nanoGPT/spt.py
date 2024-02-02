@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 import yaml
 from tqdm import tqdm
 import logging
@@ -200,6 +201,7 @@ def main():
   n_head = yaml_params['n_head']
   n_layer = yaml_params['n_layer']
   dropout = yaml_params['dropout']
+  i_lr = float(yaml_params['learning_rate'])
   
   # check parameters
   assert n_embd % n_head == 0, "n_embd needs to be divisible by n_head" 
@@ -235,18 +237,20 @@ def main():
   logger.info(f" --- Size of Embedding              : {n_embd}")
   logger.info(f" --- Number of heads                : {n_head}")
   logger.info(f" --- Size of Heads                  : {n_embd // n_head}")
-  logger.info(f" --- Batch Size                     : {batch_size}")
+  logger.info(f" --- Initial learning rate          : {i_lr}")
   logger.info(f" --- Number of layers               : {n_layer}")
 
   # create a PyTorch optimizer
-  optimizer = torch.optim.AdamW(model.parameters(), lr=float(yaml_params['learning_rate']))
+  optimizer = torch.optim.AdamW(model.parameters(), lr=i_lr)
+  scheduler = ReduceLROnPlateau(optimizer, 'min', )
 
   for iter in tqdm(range(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
-      if iter % yaml_params['eval_interval'] == 0:
+      if iter % eval_iters == 0:
           losses = estimate_loss(model, val_data, eval_iters, block_size, batch_size, device)
           logger.info(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+          scheduler.step(losses['val'])
 
       # sample a batch of data
       xb, yb = get_batch(train_data, block_size, batch_size, device)
