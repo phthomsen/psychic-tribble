@@ -184,14 +184,13 @@ class BigramLanguageModel(nn.Module):
         return idx
 
 
-
 def main():
 
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
   torch.manual_seed(1337)
    
   # load hyperparams
-  yaml_params = get_yaml_params("hyper.yaml")
+  yaml_params = get_yaml_params("hyper_mac.yaml")
   n_embd = yaml_params['n_embd']
   block_size = yaml_params['block_size']
   batch_size = yaml_params['batch_size']
