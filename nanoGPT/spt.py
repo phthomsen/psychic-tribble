@@ -193,6 +193,7 @@ def main():
   
   store_model = True if os.getenv("STORE") else None
   load_model = True if os.getenv("LOAD") else None
+  track_metrics = True if os.getenv("METRICS") else None
      
   # load hyperparams
   yaml_params = get_yaml_params("hyper_mac.yaml")
@@ -248,6 +249,9 @@ def main():
   optimizer = torch.optim.AdamW(model.parameters(), lr=i_lr)
   scheduler = ReduceLROnPlateau(optimizer, 'min', )
 
+  if track_metrics:
+    train_loss = []
+    val_loss = []
   for iter in tqdm(range(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
@@ -255,6 +259,9 @@ def main():
           losses = estimate_loss(model, val_data, eval_iters, block_size, batch_size, device)
           logger.info(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
           scheduler.step(losses['val'])
+          if track_metrics:
+            train_loss.append(losses['train'])
+            val_loss.append(losses['val'])
 
       # sample a batch of data
       xb, yb = get_batch(train_data, block_size, batch_size, device)
