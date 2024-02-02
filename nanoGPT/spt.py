@@ -188,7 +188,7 @@ class BigramLanguageModel(nn.Module):
 
 def main():
 
-  device = 'cuda' if torch.cuda.is_available() else 'mps'
+  device = 'cuda' if torch.cuda.is_available() else 'cpu'
   torch.manual_seed(1337)
   
   store_model = True if os.getenv("STORE") else None
