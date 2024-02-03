@@ -7,6 +7,7 @@ import yaml
 from tqdm import tqdm
 import logging
 import os
+import time
 
 logging.basicConfig(level=logging.INFO if not os.getenv("DEBUG") else logging.DEBUG) # not pretty but works
 logger = logging.getLogger(__name__)
@@ -255,6 +256,7 @@ def main():
   if track_metrics:
     train_loss = []
     val_loss = []
+  time1 = time.time()
   for iter in tqdm(range(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
@@ -274,8 +276,9 @@ def main():
       optimizer.zero_grad(set_to_none=True)
       loss.backward()
       optimizer.step()
-
+  duration = time1 - time.time()
   logger.info("Training done.")
+  logger.info(f"Training took {duration//60} minutes")
   if store_model:
     # TODO: put in function
     os.makedirs("../models/", exist_ok=True)
