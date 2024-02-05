@@ -116,21 +116,22 @@ class Block(nn.Module):
     self.ln2 = nn.LayerNorm(n_embd)
   
   def forward(self, x):
+    x_res = x
+    # layer norm and self attention
     logger.debug(f"initial shape: {x.shape}")
-    x_res = self.ln1(x)
+    x = self.ln1(x)
     logger.debug(f"shape after layer norm 1: {x.shape}")
-    x_res = self.sa(x_res)
+    x = self.sa(x_res)
     logger.debug(f"shape after attention: {x.shape}")
-    x = x + x_res
+    # 
+    x_res = x_res + x
     logger.debug(f"shape after residual conntection 1: {x.shape}")
-    # x = x + self.sa(self.ln1(x)) # residual connections
-    x_res = self.ln2(x)
+    x = self.ln2(x)
     logger.debug(f"shape after layer norm 2: {x.shape}")
-    x_res = self.ffwd(x_res)
+    x = self.ffwd(x_res)
     logger.debug(f"shape after forward: {x.shape}")
-    x = x + x_res 
+    x_res = x_res + x
     logger.debug(f"shape after residual 2: {x.shape}")
-    # x = x + self.ffwd(self.ln1(x)) # residual connections
     return x
 
 
