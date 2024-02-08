@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import yaml
-from tqdm import tqdm
+from tqdm import trange
 import logging
 import os
 import time
@@ -258,12 +258,12 @@ def main():
     train_loss = []
     val_loss = []
   time1 = time.time()
-  for iter in tqdm(range(max_iters)):
+  for iter in (t:=trange(max_iters)):
 
       # every once in a while evaluate the loss on train and val sets
       if iter % eval_interval == 0:
           losses = estimate_loss(model, val_data, eval_iters, block_size, batch_size, device)
-          logger.info(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+          t.set_description(f"step {iter}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
           scheduler.step(losses['val'])
           if track_metrics:
             train_loss.append(losses['train'])
@@ -277,9 +277,9 @@ def main():
       optimizer.zero_grad(set_to_none=True)
       loss.backward()
       optimizer.step()
-  duration = time1 - time.time()
+  duration = time.time() - time1
   logger.info("Training done.")
-  logger.info(f"Training took {duration//60} minutes")
+  logger.info(f"Training took {(duration/60):.4f} minutes")
   if store_model:
     # TODO: put in function
     os.makedirs("../models/", exist_ok=True)
